@@ -1,13 +1,9 @@
-use std::io::prelude::*;
-use std::fs::File;
 
-#[derive(Debug)]
 enum Direction {
     Left,
     Right
 }
 
-#[derive(Debug)]
 enum Facing {
     North,
     South,
@@ -18,18 +14,16 @@ enum Facing {
 struct DirectionPair(Direction, i32);
 struct Path(Facing, Vec<(i32, i32)>);
 
-fn main() {
-    let directions: Vec<u8> = File::open("input/input.txt").unwrap().bytes().map(|b| b.unwrap()).collect();
-    let directions_str : String = String::from_utf8_lossy(&directions).split_whitespace().collect();
-
-    let Path(final_facing, path) : Path = directions_str.split(',').map(|d| {
+fn get_path(instructions: &str) -> Path {
+    instructions.split(", ").map(|d| {
         let (dir, dist) = d.split_at(1);
         DirectionPair(match dir {
             "R" => Direction::Right,
             "L" => Direction::Left,
             _   => panic!("Invalid direction letter: {}", dir)
         }, dist.parse().unwrap())
-    }).fold(Path(Facing::North, vec![(0,0)]), | Path(facing, history), DirectionPair(dir, dist)| {
+    })
+    .fold(Path(Facing::North, vec![(0,0)]), | Path(facing, history), DirectionPair(dir, dist)| {
         let new_facing = match dir {
             Direction::Right => match facing {
                Facing::North => Facing::East,
@@ -56,20 +50,43 @@ fn main() {
         }).collect();
 
         Path(new_facing, history.iter().chain(visited.iter()).cloned().collect())
-    });
+    })
+}
 
-    let (final_x, final_y) = (path.last().unwrap().0, path.last().unwrap().1);
-    println!("Final Location {:?}, X = {}, Y = {}", final_facing, final_x, final_y);
-    println!("Final Distance = {}", (final_x.abs() + final_y.abs()).abs());
+fn calculate_final_distance(path_taken: &Path) -> ((i32,i32),i32) {
+    let &(final_x, final_y) = path_taken.1.last().unwrap();
+    ((final_x, final_y), (final_x.abs() + final_y.abs()).abs())
+}
 
-    let repeats : Vec<(&(i32,i32),i32)> = path.iter().enumerate().filter_map(|x| {
-        let location : &(i32, i32) = x.1;
-        match path.split_at((x.0)+1).1.contains(&location) {
-            true => Some((location, location.0.abs() + location.1.abs())),
+fn calculate_first_intersect(path_taken: &Path) -> ((i32,i32),i32) {
+    let first_intersect : &(i32,i32) = path_taken.1.iter().enumerate().filter_map(|x| {
+        match path_taken.1.split_at((x.0)+1).1.contains(x.1) {
+            true => Some(x.1),
             false => None        
         }
-    }).collect();
+    }).collect::<Vec<&(i32,i32)>>().first().unwrap();
+    ((first_intersect.0, first_intersect.1), (first_intersect.0.abs() + first_intersect.1.abs()).abs())
+}
 
-    let (first_repeat_location, first_repeat_distance) = (repeats.first().unwrap().0, repeats.first().unwrap().1);
-    println!("First repeat = ({},{}), Distance = {}", first_repeat_location.0, first_repeat_location.1, first_repeat_distance);
+fn main() {
+    let full_path = get_path(include_str!("../input/input.txt"));
+
+    println!("Final Distance: {}", calculate_final_distance(&full_path).1);
+    println!("First Intersect Distance: {}", calculate_first_intersect(&full_path).1);
+}
+
+#[test]
+fn part_one() {
+    let inputs = "R5, L5, R5, R3";
+    assert_eq!(((10,2), 12), calculate_final_distance(&get_path(inputs)));
+    let inputs = "R2, R2, R2";
+    assert_eq!(((0,-2), 2), calculate_final_distance(&get_path(inputs)));
+    let inputs = "R2, L3";
+    assert_eq!(((2,3), 5), calculate_final_distance(&get_path(inputs)));
+}
+
+#[test]
+fn part_two() {
+    let inputs = "R8, R4, R4, R8";
+    assert_eq!(((4,0), 4), calculate_first_intersect(&get_path(inputs)));
 }
