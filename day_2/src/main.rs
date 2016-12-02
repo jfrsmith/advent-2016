@@ -1,34 +1,77 @@
-use std::io::{BufReader,BufRead};
-use std::fs::File;
-use std::cmp;
+fn clamp(index: i32, min : i32, max: i32) -> i32 {
+	std::cmp::max(std::cmp::min(index, max), min)
+}
 
-fn get_wrapping_paper_size(input_str: &str) -> (i32, i32) {
-	let dimensions: Vec<_> = input_str.split("x").collect();
-	let dim_as_num: Vec<i32> = dimensions.into_iter().map(|dim| dim.parse().unwrap()).collect();
-	
-	let w = dim_as_num[0];
-	let l = dim_as_num[1];
-	let h = dim_as_num[2];
+fn to_digit(key: &(i32,i32), keypad : &Vec<Vec<char>>) -> char {
+	keypad[key.1 as usize][key.0 as usize]
+}
 
-	let a = w * l;
-	let b = l * h;
-	let c = h * w;
+fn move_key(from: &(i32,i32), dir: &(i32,i32), keypad : &Vec<Vec<char>>) -> (i32,i32) {
+	let new_loc = (clamp((from.0 + dir.0), 0, keypad.len() as i32 - 1), clamp((from.1+dir.1), 0, keypad.len() as i32 - 1));
+	match to_digit(&new_loc, keypad) {
+		'-' => (from.0, from.1),
+		_	=> new_loc
+	}
+}
 
-	let paper = (2 * a) + (2 * b) + (2 * c) + cmp::min(cmp::min(a, b), c);
-	let ribbon = ((2 * w) + (2 * l) + (2 * h)  - (2 * cmp::max(cmp::max(w, l), h))) + (w * l * h);
+fn to_direction(from: &char) -> (i32,i32) {
+	match from {
+		&'U' => (0,-1),
+		&'L' => (-1,0),
+		&'D' => (0,1),
+		&'R' => (1,0),
+		_   => panic!("Invalid direction letter: {}", from)
+	}
+}
 
-	(paper, ribbon)
+fn get_bathroom_code(input_str: &str, keypad : &Vec<Vec<char>>, starting_position : (i32, i32)) -> String {
+	input_str.lines().fold(vec![starting_position], | keys, line | {
+		let pressed_key = line.chars().fold(*keys.last().unwrap(), | current_key, input | {
+			move_key(&current_key, &to_direction(&input), &keypad)
+		});
+		keys.iter().chain(vec![pressed_key].iter()).cloned().collect()
+	}).split_at(1).1.iter().map(|x| {
+		to_digit(x, &keypad)
+	}).collect()
+}
+
+fn get_part_one_keypad() -> Vec<Vec<char>> {
+	vec![
+		vec!['1','2','3'],
+		vec!['4','5','6'],
+		vec!['7','8','9']
+		]
+}
+
+fn get_part_two_keypad() -> Vec<Vec<char>> {
+	vec![
+		vec!['-','-','1','-','-'],
+		vec!['-','2','3','4','-'],
+		vec!['5','6','7','8','9'],
+		vec!['-','A','B','C','-'],
+		vec!['-','-','D','-','-'],
+		]
 }
 
 fn main() {
-	let mut total_paper = 0;
-	let mut total_ribbon = 0;
-    let file = File::open("input/input.txt").unwrap();
-    for line in BufReader::new(file).lines() {
-    	let (paper, ribbon) = get_wrapping_paper_size(&line.unwrap());
-    	total_paper += paper;
-    	total_ribbon += ribbon;
-    }
+	println!("Part one code: {:?}", get_bathroom_code(include_str!("../input/input.txt"), &get_part_one_keypad(), (1,1)));
+	println!("Part wto code: {:?}", get_bathroom_code(include_str!("../input/input.txt"), &get_part_two_keypad(), (0,2)));
+}
 
-    println!("total_paper: {} total_ribbon: {}", total_paper, total_ribbon);
+#[test]
+fn part_one() {
+    let inputs = "ULL
+RRDDD
+LURDL
+UUUUD";
+    assert_eq!("1985", get_bathroom_code(&inputs, &get_part_one_keypad(), (1,1)));
+}
+
+#[test]
+fn part_two() {
+    let inputs = "ULL
+RRDDD
+LURDL
+UUUUD";
+    assert_eq!("5DB3", get_bathroom_code(&inputs, &get_part_two_keypad(), (0,2)));
 }
