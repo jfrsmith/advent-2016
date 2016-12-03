@@ -1,35 +1,58 @@
-use std::io::prelude::*;
-use std::fs::File;
-use std::collections::HashMap;
+struct Triangle(i32, i32, i32);
+
+fn is_valid_triangle(triangle: &Triangle) -> bool {
+    ((triangle.0 + triangle.1) > triangle.2) && 
+    ((triangle.1 + triangle.2) > triangle.0) &&
+    ((triangle.2 + triangle.0) > triangle.1) 
+}
+
+fn get_num_triangles_by_row(input_str: &str) -> usize {
+   input_str.lines().filter_map(|s| {
+        match is_valid_triangle(&(s.split_whitespace()
+            .enumerate().fold(Triangle(0,0,0), | Triangle(a,b,c), (i,s) | {
+            match i {
+                0 => Triangle(s.parse().unwrap(), b, c),
+                1 => Triangle(a, s.parse().unwrap(), c),
+                2 => Triangle(a, b, s.parse().unwrap()),
+                _ => panic!("Invalid triangle size")
+            }
+        }))) {
+            true => Some(s),
+            false => None
+        }
+   }).collect::<Vec<&str>>().len()
+}
+
+fn get_num_triangles_by_col(input_str: &str) -> usize {
+    input_str.lines().collect::<Vec<&str>>().chunks(3).map( |s| {
+        s[0].split_whitespace().zip(s[1].split_whitespace()).zip(s[2].split_whitespace()).map( | ((x,y),z) | {
+            Triangle(x.parse().unwrap(),y.parse().unwrap(),z.parse().unwrap())
+        }).collect::<Vec<(Triangle)>>()
+    }).fold(0, |outer_count, outer| {
+        outer.iter().fold(outer_count, | inner_count, inner | {
+            inner_count + (is_valid_triangle(inner) as usize)
+        })
+    })
+}
 
 fn main() {
-    let mut file = File::open("input/input.txt").unwrap();
-    let mut input_str = String::new();
-    file.read_to_string(&mut input_str).unwrap();
+    println!("Number of triangles (rows): {}", get_num_triangles_by_row(include_str!("../input/input.txt")));
+    println!("Number of triangles (cols): {}", get_num_triangles_by_col(include_str!("../input/input.txt")));
+}
 
-    let mut houses = HashMap::new();
+#[test]
+fn part_one() {
+    let inputs = "5 10 25";
+    assert_eq!(0, get_num_triangles_by_row(&inputs));
+}
 
-    houses.insert((0, 0), 1);
-
-  	let mut santa_location = (0, 0);
-  	let mut robo_location = (0, 0);
-  	let mut santa_instruction = true;
-
-    for c in input_str.chars() {
-
-    	let (ref mut current_x, ref mut current_y) = *if santa_instruction { &mut santa_location } else { &mut robo_location };
-
-        match c {
-            '^' => *current_y += 1,
-            'v' => *current_y -= 1,
-            '<' => *current_x -= 1,
-            '>' => *current_x += 1,
-			_ => {}
-        }
-
-        houses.insert((*current_x,*current_y), 1);
-        santa_instruction = !santa_instruction;
-    }
-
-    println!("num houses = {}", houses.len());
+#[test]
+fn part_two() {
+    let inputs = "101 301 501
+102 302 502
+103 303 503
+201 401 601
+202 402 602
+203 403 603";
+    assert_eq!(6, get_num_triangles_by_col(&inputs));
 }
