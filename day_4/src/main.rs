@@ -68,18 +68,22 @@ fn shift_cipher(shift_char: &char, shift_by: &u32) -> char {
 }
 
 fn get_real_room_name(encrypted_room: &str, sector_id: &u32) -> String {
-    let real_name = encrypted_room.split(char::is_numeric).0.chars().map(|c| shift_cipher(&c, sector_id)).collect();
-    //println!("{:?}", real_name);
-    real_name
+    let real_name : String = encrypted_room.split(char::is_numeric).collect::<Vec<&str>>()[0].chars().map(|c| shift_cipher(&c, sector_id)).collect();
+    real_name.trim().to_string()
 }
 
-fn get_real_room_names(input: &str) -> Vec<String> {
-    get_real_rooms(input).iter().map(|room| get_real_room_name(&room.3, &room.1)).collect()
+fn get_north_pole_storage_sector_id(input: &str) -> u32 {
+    get_real_rooms(input).iter().filter_map(|room| {
+        match get_real_room_name(&room.3, &room.1) == "northpole object storage" {
+            true => Some(room.1),
+            false => None
+        }
+    }).collect::<Vec<u32>>()[0]
 }
 
 fn main() {
     println!("Sum of Sector IDs = {}", get_sector_id_total(include_str!("../input/input.txt")));
-    //println!("Real room names = {:?}", get_real_room_names(include_str!("../input/input.txt")));
+    println!("northpole object storage sector ID = {}", get_north_pole_storage_sector_id(include_str!("../input/input.txt")));
 }
 
 #[test]
