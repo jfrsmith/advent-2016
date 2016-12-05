@@ -2,3 +2,6 @@
 name = "day_5"
 version = "0.1.0"
 authors = ["Jack <jfrsmith@me.com>"]
+
+[dependencies]
+md5 = "0.2.1"

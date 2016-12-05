@@ -38,7 +38,6 @@ fn parse_room(entry: &str) -> Room {
 }
 
 fn get_real_rooms(encrypted_data: &str) -> Vec<Room> {
-    println!("{:?}", encrypted_data);
     encrypted_data.lines().filter_map(|line| {
         let room = parse_room(line);
         match room.2 == generate_checksum(&room.0) {
