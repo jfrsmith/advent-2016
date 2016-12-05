@@ -1,7 +1,5 @@
 extern crate md5;
 
-static mut hash_count : i32 = 0;
-
 use std::char;
 
 fn hex_to_char(hex: u8) -> char {
@@ -25,10 +23,6 @@ fn find_next_unused_hash(door_id: &str, start_index: u32, invalid_indices: &Vec<
 		let next_door_id = door_id.to_string() + &index.to_string();
 		let next_digest = md5::compute(&next_door_id.to_string().into_bytes());
 
-		unsafe{
-			hash_count += 1;
-		}	
-
 		if is_valid_hash(&next_digest) {
 			let placement = get_char_index_from_valid_hash_byte(&next_digest[2] & 0x0f, invalid_indices.len());
 			if placement.is_some() && invalid_indices[placement.unwrap()] == ' ' {
@@ -44,9 +38,7 @@ fn find_next_hash(door_id: &str, start_index: u32) -> (char, u32) {
 	for index in start_index.. {
 		let next_door_id = door_id.to_string() + &index.to_string();
 		let next_digest = md5::compute(&next_door_id.to_string().into_bytes());
-		unsafe{
-			hash_count += 1;
-		}
+		
 		if is_valid_hash(&next_digest) {
 			return (hex_to_char(next_digest[2] & 0x0f), index);
 		}
@@ -74,18 +66,7 @@ fn get_door_password_part_two(door_id: &str, len: usize) -> String {
 
 fn main() {
     println!("Door Password (Part one) = {:?}", get_door_password_part_one("ffykfhsq", 8));
-
-    unsafe {
-		println!("Num hashes part 1: {}", hash_count); 
-		hash_count = 0;
-	}
-
     println!("Door Password (Part two) = {:?}", get_door_password_part_two("ffykfhsq", 8));
-
-    unsafe {
-		println!("Num hashes part 2: {}", hash_count); 
-		hash_count = 0;
-	}
 }
 
 #[test]
