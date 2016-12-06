@@ -1,6 +1,7 @@
 extern crate md5;
 
 use std::char;
+use std::thread;
 
 fn hex_to_char(hex: u8) -> char {
 	char::from_digit(hex as u32, 16).unwrap()
@@ -65,6 +66,7 @@ fn get_door_password_part_two(door_id: &str, len: usize) -> String {
 }
 
 fn main() {
+
     println!("Door Password (Part one) = {:?}", get_door_password_part_one("ffykfhsq", 8));
     println!("Door Password (Part two) = {:?}", get_door_password_part_two("ffykfhsq", 8));
 }
