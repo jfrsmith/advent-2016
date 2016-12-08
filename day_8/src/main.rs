@@ -48,6 +48,15 @@ impl fmt::Debug for Screen {
     }
 }
 
+fn modulo(x:i32, d:i32) -> i32 {
+    if x < 0 {
+        (x % d) + d
+    }
+    else {
+        x % d
+    }
+}
+
 fn parse_rect_instruction(params: &[&str]) -> Instruction {
     let dims = params[0].split('x').collect::<Vec<&str>>();
     Instruction::Rect{x: dims.get(0).unwrap().parse().unwrap(), y: dims.get(1).unwrap().parse().unwrap() }
@@ -78,18 +87,28 @@ fn construct_screen(screen_dimensions: (usize, usize)) -> Screen {
 
 fn apply_instruction(next_instruction: Instruction, last_state: &Screen) -> Screen {
     let new_grid = last_state.grid.iter().enumerate().map(|(row_index, row)| {
-        row.iter().enumerate().map(|(col_index, pixel)| {
+        row.iter().enumerate().map(|(col_index, _)| {
             match next_instruction {
-                //If this co-ordinate is within the bounds of the rect, then we return true as it should be lit
-                Instruction::Rect{x: x, y: y} => {
-                    row_index < x as usize && col_index < y as usize
+                Instruction::Rect{x, y} => {
+                    (col_index < x as usize && row_index < y as usize) || last_state.grid[row_index][col_index]
                 },
-                //If, in the previous state, the reverse of these instructions indicate a lit pixel, then this should be lit
                 Instruction::RotateRow{row_index: x, rotate_by: r} => {
-                    
+                    if row_index == x as usize {
+                        let prev_col_index = modulo((col_index as i32 - r), last_state.grid[0].len() as i32) as usize;
+                        last_state.grid[row_index][prev_col_index]
+                    }
+                    else {
+                        last_state.grid[row_index][col_index]
+                    }
                 },
                 Instruction::RotateCol{col_index: y, rotate_by: r} => {
-
+                    if col_index == y as usize {
+                        let prev_row_index = modulo((row_index as i32 - r), last_state.grid.len() as i32) as usize;
+                        last_state.grid[prev_row_index][col_index]
+                    }
+                    else {
+                        last_state.grid[row_index][col_index]
+                    }
                 }
             }
         }).collect::<Vec<bool>>()
@@ -101,12 +120,15 @@ fn apply_instruction(next_instruction: Instruction, last_state: &Screen) -> Scre
 fn count_lit_pixels(instructions: &str, screen_dimensions: (usize, usize)) -> i32 {
     let initial_screen = construct_screen(screen_dimensions);
     instructions.lines().map(|instruction_line| {parse_instruction(instruction_line)}).fold(initial_screen, | last_state, instr | {
-        apply_instruction(instr, &last_state)
+        let new_grid = apply_instruction(instr, &last_state);
+
+        println!("{:?}\n", new_grid);
+        new_grid
     }).get_lit_pixels()
 }
 
 fn main() {
-    print!("Lit pixels => {:?}", count_lit_pixels(include_str!("../input/input.txt"), (50,6)));
+    println!("Lit pixels => {:?}", count_lit_pixels(include_str!("../input/input.txt"), (50,6)));
 }
 
 #[test]
@@ -120,8 +142,44 @@ fn instruction_parsing() {
 fn instruction_sequence() {
     let input = "rect 3x2
     rotate column x=1 by 1
-    rotate row y=0 by 4";
+    rotate row y=0 by 4
+    rotate column x=1 by 1";
     assert_eq!(6, count_lit_pixels(input, (7,3)));
+}
+
+#[test]
+fn test_instructions() {
+    let mut input = "rect 3x2";
+    let mut output = "###....
+###....
+.......";
+
+    let mut last_state = apply_instruction(parse_instruction(&input), &construct_screen((7,3)));
+    assert_eq!(output, last_state.render_screen());
+
+    input = "rotate column x=1 by 1";
+    output = "#.#....
+###....
+.#.....";
+
+    last_state = apply_instruction(parse_instruction(&input), &last_state);
+    assert_eq!(output, last_state.render_screen());
+
+    input = "rotate row y=0 by 4";
+    output = "....#.#
+###....
+.#.....";
+
+    last_state = apply_instruction(parse_instruction(&input), &last_state);
+    assert_eq!(output, last_state.render_screen());
+
+    input = "rotate column x=1 by 1";
+    output = ".#..#.#
+#.#....
+.#.....";
+
+    last_state = apply_instruction(parse_instruction(&input), &last_state);
+    assert_eq!(output, last_state.render_screen());
 }
 
 #[test]
