@@ -1,83 +1,65 @@
-use std::io::prelude::*;
-use std::fs::File;
-use std::collections::{HashMap,HashSet};
+fn decompress(input: &str, decompress_repeated_segments: bool) -> i64 {
+    let next_marker_start = input.find('(');
+    let next_marker_end = match next_marker_start {
+        Some(x) => input[x..input.len()].find(')'),
+        None => None
+    };
 
-#[derive(Debug, PartialEq, Eq, Hash)]
-struct Route<'a> {
-    origin: &'a str,
-    dest: &'a str
+    if next_marker_start.is_none() || next_marker_end.is_none() {
+        return input.len() as i64;
+    }
+
+    let marker_start = next_marker_start.unwrap();
+    let marker_end = marker_start + next_marker_end.unwrap();
+    let decode_marker = input[marker_start+1..marker_end].split(|c| c == '(' || c == ')' || c == 'x').collect::<Vec<&str>>();
+    let sequence_start = marker_end + 1;
+    let sequence_end = sequence_start+decode_marker[0].parse::<usize>().unwrap();
+
+    if decompress_repeated_segments {
+        next_marker_start.unwrap() as i64 + (decompress(&input[sequence_start..sequence_end], true) * decode_marker[1].parse::<i64>().unwrap()) + decompress(&input[sequence_end..input.len()], true)
+    }
+    else {
+        next_marker_start.unwrap() as i64 + ((sequence_end - sequence_start) as i64 * decode_marker[1].parse::<i64>().unwrap()) + decompress(&input[sequence_end..input.len()], false)
+    }
 }
 
 fn main() {
-   let mut file = File::open("input/input.txt").unwrap();
-   let mut input = String::new();
-   file.read_to_string(&mut input).unwrap();
-   
-   let (routes, cities) = build_map(&input);
-   let range = route_len_range(routes, cities);
-   
-   println!("{:?}", range);
+    println!("Decompressed file length (Part one) => {:?}", decompress(include_str!("../input/input.txt"), false));
+    println!("Decompressed file length (Part two) => {:?}", decompress(include_str!("../input/input.txt"), true));
 }
 
-fn route_len_range(routes: HashMap<Route, u32>, cities: Vec<&str>) -> (u32, u32) {
-    let mut distances: Vec<u32> = get_permutations(cities).into_iter().map(|p| {
-    	let mut dist = 0;
-        for i in 0..p.len()-1 {
-            let c1 = p.get(i).unwrap();
-            let c2 = p.get(i+1).unwrap();
-            let r = Route{origin: c1, dest: c2};
-            dist += *routes.get(&r).unwrap();
-        }
-        dist
-    }).collect();
+#[test]
+fn decompression_part_one() {
+    let mut input = "ADVENT";
+    assert_eq!(6, decompress(&input, false));
 
-    distances.sort();
+    input = "A(1x5)BC";
+    assert_eq!(7, decompress(&input, false));
 
-    (*distances.first().unwrap(), *distances.last().unwrap())
+    input = "(3x3)XYZ";
+    assert_eq!(9, decompress(&input, false));
+    
+    input = "A(2x2)BCD(2x2)EFG";
+    assert_eq!(11, decompress(&input, false));
+    
+    input = "(6x1)(1x3)A";
+    assert_eq!(6, decompress(&input, false));
+    
+    input = "X(8x2)(3x3)ABCY";
+    assert_eq!(18, decompress(&input, false));
 }
 
-fn get_permutations<T: Clone>(v: Vec<T>) -> Vec<Vec<T>> {
-    match v.len() {
-        0 | 1 => vec![v],
-        2 => {
-            let rev0 = v.get(1).unwrap().clone();
-            let rev1 = v.get(0).unwrap().clone();
-            vec![v, vec![rev0, rev1]]
-        },
-        _ => {
-            let mut permutations = vec![];
-            for i in 0..v.len() {
-                let mut v2 = v.to_vec();
-                v2.swap(0, i);
-                let curr = v2.get(0).unwrap().clone();
-                v2.remove(0);
-                for mut p in get_permutations(v2.to_vec()) {
-                    p.insert(0, curr.clone());
-                    permutations.push(p);
-                }
-            }
-            permutations
-        },
-    }
-}
+#[test]
+fn decompression_part_2() {
+    let mut input = "(3x3)XYZ";
+    assert_eq!(9, decompress(&input, true));
 
-fn build_map(input: &String) -> (HashMap<Route, u32>, Vec<&str>) {
-    let mut routes: HashMap<Route, u32> = HashMap::new();
-    let mut cities: HashSet<&str> = HashSet::new();
-    for line in input.lines() {
-        let split: Vec<&str> = line.split_whitespace().collect();
-        let origin = split[0];
-        let dest = split[2];
-        let dist = split[4].parse::<u32>().unwrap();
-        //println!("{}: O={}, D={}, d={}", line, origin, dest, dist);
-        routes.insert(Route{origin: origin, dest: dest}, dist);
-        routes.insert(Route{origin: dest, dest: origin}, dist);
-        cities.insert(origin);
-        cities.insert(dest);
-    }
-    let mut cs = vec![];
-    for city in cities {
-        cs.push(city);
-    }
-    (routes, cs)
+    input = "X(8x2)(3x3)ABCY";
+    assert_eq!(20, decompress(&input, true));
+
+    input = "(27x12)(20x12)(13x14)(7x10)(1x12)A";
+    assert_eq!(241920, decompress(&input, true));
+    
+    input = "(25x3)(3x3)ABC(2x3)XY(5x2)PQRSTX(18x9)(3x2)TWO(5x7)SEVEN";
+    assert_eq!(445, decompress(&input, true));
 }
