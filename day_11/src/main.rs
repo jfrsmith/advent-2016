@@ -3,10 +3,7 @@ use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::fmt;
 
-//TODO:
-// - Disregard visited states with less steps than yours
-
-#[derive(PartialEq, Eq, Clone, Hash)]
+#[derive(PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
 enum Component {
     Microchip {microchip_type: String},
     Generator {generator_type: String}
@@ -21,9 +18,21 @@ impl fmt::Debug for Component {
     }
 }
 
-#[derive(Debug, PartialEq, Eq, Clone, Hash)]
+#[derive(Debug, Clone, Hash)]
 struct Floor {
     contents: Vec<Component>
+}
+
+impl Eq for Floor {}
+
+impl PartialEq for Floor {
+    fn eq(&self, other: &Floor) -> bool {
+        let mut v1 = self.contents.clone();
+        let mut v2 = other.contents.clone();
+        v1.sort();
+        v2.sort();
+        v1 == v2
+    }
 }
 
 impl Floor {
@@ -130,14 +139,12 @@ impl ContainmentAreaState {
         //If we remove these occupants, will the current floor no longer be valid?
         let removed = Floor{ contents: from_floor.contents.iter().filter(|x| !move_components.contains(x) ).cloned().collect::<Vec<Component>>() };
         if !removed.is_valid() {
-            //println!("Rejected Floor: {:?}", removed);
             return None;
         }
 
         //If we add these occupants to the other floor, with the other floor no longer be valid?
         let added = Floor { contents: to_floor.contents.iter().chain(move_components.iter()).cloned().collect::<Vec<Component>>() };
         if !added.is_valid() {
-            //println!("Rejected Floor: {:?}", added);
             return None;
         }
 
@@ -548,7 +555,7 @@ fn child_generation_step_4() {
         elevator_index: 0,
         floors: vec!(
                 Floor {
-                    contents: vec!(Component::Microchip{microchip_type: "lithium".to_string()}, Component::Microchip{microchip_type: "hydrogen".to_string()})
+                    contents: vec!(Component::Microchip{microchip_type: "hydrogen".to_string()}, Component::Microchip{microchip_type: "lithium".to_string()})
                 },
                 Floor {
                     contents: vec!()
