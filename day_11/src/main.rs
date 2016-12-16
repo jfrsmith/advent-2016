@@ -3,7 +3,7 @@ use std::collections::BinaryHeap;
 use std::collections::HashMap;
 use std::fmt;
 
-#[derive(PartialEq, Eq, Clone, Hash, PartialOrd, Ord)]
+#[derive(Eq, PartialEq, Clone, Hash, PartialOrd, Ord)]
 enum Component {
     Microchip {microchip_type: String},
     Generator {generator_type: String}
@@ -299,6 +299,112 @@ fn is_valid_pairing(component_pair: (&Component, &Component)) -> bool {
     }
 }
 
+struct ContainmentAreaStateV2 {
+    top_floor: usize,
+    elevator: usize,
+    components: Vec<usize>,
+    elements: Vec<String>
+}
+
+impl fmt::Debug for ContainmentAreaStateV2 {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{}", self.output())
+    }
+}
+
+impl ContainmentAreaStateV2 {
+    fn parse(input: &str) -> ContainmentAreaStateV2 {
+        let (generators, microchips) : (Vec<(String, usize)>, Vec<(String,usize)>) = input.lines().enumerate().fold((vec!(), vec!()), |(g_vec, m_vec), (floor_index, line)| {
+            if line.contains("nothing relevant") {
+                return (g_vec, m_vec);
+            }
+
+            let floor_generators = line.rmatch_indices("generator").fold(vec!(), |generators, (i, _)| {
+                generators.iter().chain(vec!((line[0..i].split_whitespace().last().unwrap().to_string(), floor_index)).iter()).cloned().collect()
+            });
+
+            let floor_microchips = line.rmatch_indices("microchip").fold(vec!(), |microchips, (i, _)| {
+                microchips.iter().chain(vec!((line[0..i].split_whitespace().last().unwrap().split('-').nth(0).unwrap().to_string(), floor_index)).iter()).cloned().collect()
+            });
+
+            (
+                g_vec.iter().chain(floor_generators.iter()).cloned().collect(),
+                m_vec.iter().chain(floor_microchips.iter()).cloned().collect()
+            )
+        });
+
+        let (components, elements) : (Vec<usize>, Vec<String>) = microchips.iter().fold((vec!(), vec!()), |(comp_vec, elem_vec), &(ref microchip_element_name, microchip_floor)| {
+            let next_two_components = vec!(microchip_floor, generators.iter().find(|&&(ref gen_name, _)| gen_name == microchip_element_name).unwrap().1);
+
+            (
+                comp_vec.iter().chain(next_two_components.iter()).cloned().collect(),
+                elem_vec.iter().chain(vec!(microchip_element_name.to_string()).iter()).cloned().collect()
+            )
+        });
+
+        ContainmentAreaStateV2 {
+            elevator: 0,
+            components: components.clone(),
+            elements: elements.clone(),
+            top_floor: input.lines().clone().count()
+        }
+    }
+
+    fn is_microchip(&self, component_index: usize) -> bool {
+        component_index % 2 == 0
+    }
+
+    fn get_component_name(&self, component_index: usize) -> String {
+        let is_microchip = self.is_microchip(component_index);
+        let element_index = if is_microchip { component_index / 2 } else {(component_index - 1)/2};
+        let element_name = self.elements[element_index][0..2].to_uppercase().to_string();
+        let type_name = if is_microchip {"M"} else {"G"};
+
+        format!("{}{}", element_name, type_name).to_string()
+    }
+
+    fn output(&self) -> String {
+        (self.top_floor..0).fold("".to_string(), |out_str, floor_index| {
+            let components_str = self.components.iter().enumerate().map(|(i, comp)| {
+                if *comp as usize == floor_index {
+                    format!("{:?}", self.get_component_name(i))
+                } else {
+                    " . ".to_string()
+                }
+            }).collect::<Vec<String>>().join(" ");
+
+            out_str + &format!("F{} {} {}", floor_index+1, if self.elevator == floor_index {"E"} else {"."}, components_str) + if floor_index != 0 {"\n"} else {""}
+        })
+    }
+
+    fn get_num_components(&self) -> usize {
+        self.components.len()
+    }
+
+    fn is_completed_state(&self) -> bool {
+        self.components.iter().all(|&floor| floor == self.top_floor - 1)
+    }
+
+    fn state_is_valid(&self) -> bool {
+        self.components.iter().enumerate().all(|(i,&floor)| {
+            (
+                //I'm a microchip and i'm on the same floor as my generator
+                (self.is_microchip(i) && self.components[i+1] == floor) ||
+                //I'm a microchip and the rest of my floor is empty or microchips
+                (self.is_microchip(i) && self.components.iter().enumerate().all(|(j,&inner_floor)| (i == j || floor != inner_floor) || self.is_microchip(j)))
+            )
+        })
+    }
+
+    fn generate_valid_children(&self) -> Vec<ContainmentAreaState> {
+
+        
+
+        //Prune these states
+        moves_down.iter().chain(moves_up.iter()).filter(|s| s.state_is_valid()).cloned().collect()
+    }
+}
+
 fn parse_input(input: &str) -> ContainmentAreaState {
     input.lines().fold(ContainmentAreaState{elevator_index: 0, floors: vec!()}, |area, line| {
         let new_floor = match line.contains("nothing relevant") {
@@ -365,7 +471,8 @@ fn get_shortest_path_to_completion(initial_state: &ContainmentAreaState) -> i32 
 }
 
 fn main() {
-    println!("Shortest Path: {}", get_shortest_path_to_completion(&parse_input(include_str!("../input/input.txt"))));
+    println!("{:#?}", ContainmentAreaStateV2::new(include_str!("../input/input.txt")));
+    //println!("Shortest Path: {}", get_shortest_path_to_completion(&parse_input(include_str!("../input/input.txt"))));
 }
 
 #[test]
