@@ -2,6 +2,3 @@
 name = "day_12"
 version = "0.1.0"
 authors = ["jack.smith"]
-
-[dependencies]
-rustc-serialize = "0.3"
